@@ -1,6 +1,4 @@
 # Import the necessary functions and data
-
-library(tidyverse)
 library(ggdist)
 library(lme4)
 library(ggpubr)
@@ -11,36 +9,39 @@ library(gridExtra)
 library(sjPlot)
 library(sjmisc)
 library(sjlabelled)
+library(MatchIt)
+library(gtsummary)
+library(table1)
+library(tidyverse)
 
-CNB <- read_csv("~/Projects/22q/Data/cnb_all_202109.csv")
-codebook <- read_csv("~/Downloads/bbl_cross_battery_codebook.csv")
+
+CNB <- read_csv("~/Projects/22q/Data/Summary/cnb_all_202109.csv")
+codebook <- read_csv("~//Projects/22q/Data/Summary/bbl_cross_battery_codebook.csv")
+
 
 # Filter to include only 22q subjects, select only necessary columns
 
-CNB <- CNB %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,test_sessions.siteid, 
+CNB_22q <- CNB %>% 
+        select(test_sessions.bblid,test_sessions.datasetid,test_sessions.siteid, 
          test_sessions.famid, test_sessions.subid, test_sessions_v.age, test_sessions_v.battery, 
          test_sessions_v.dob, test_sessions_v.dotest, test_sessions_v.education, test_sessions_v.feducation,
          test_sessions_v.gender, test_sessions_v.handedness, test_sessions_v.meducation, deleted_sample, cnbagegrp, 
-         platform, ADT36_A.valid_code, ADT36_A.ADT36A_CR, ADT36_A.ADT36A_PC, ADT36_A.ADT36A_RTCR, CPF_B.valid_code, 
-         CPF_B.CPF_CR, CPF_B.CPF_RTCR, 
-         CPF_B.CPF_W_RTCR, ER40_D.valid_code, ER40_D.ER40D_CR, ER40_D.ER40D_RTCR, MEDF36_A.valid_code, 
-         MEDF36_A.MEDF36A_CR, MEDF36_A.MEDF36A_RTCR, MPRACT.valid_code, MPRACT.MP2RTCR, PCET_A.valid_code, PCET_A.PCET_RTCR, 
-         PCET_A.PCET_CAT, PCET_A.PCET_ACC2, PMAT24_A.valid_code, PMAT24_A.PMAT24_A_CR, 
-         PMAT24_A.PMAT24_A_RTCR, SCTAP.valid_code, SCTAP.SCTAP_TOT, SLNB2_90.valid_code, 
-         SLNB2_90.SLNB2_MCR, SLNB2_90.SLNB2_MRTC, SPCPTN90.valid_code, SPCPTN90.SCPN90_TP,
-         SPCPTN90.SCPN90_TPRT, SPCPTNL.valid_code, SPCPTNL.SCPN_TPRT, SPCPTNL.SCPN_TP,
-         SVOLT_A.SVOLT_RTCR, VSPLOT15.valid_code, VSPLOT15.VSPLOT15_CR, VSPLOT15.VSPLOT15_RTCR) %>% 
-  filter(deleted_sample == 1) %>% 
-  mutate(test_sessions_v.gender = case_when(test_sessions_v.gender == "F" ~ "Female",test_sessions_v.gender == "M" ~ "Male",TRUE ~ NA_character_)) %>% 
-  mutate(remote = ifelse(platform == "webcnp","In-person","Remote")) %>% 
-  mutate(gender_remote = paste(test_sessions_v.gender,remote))
-
-#write_csv(CNB,file = "/Users/hillmann/Projects/22q/Data/cnb_22q_202109.csv")
+         platform,ADT36_A.ADT36A_CR, ADT36_A.ADT36A_PC, ADT36_A.ADT36A_RTCR,ADT36_A.ADT36A_LRR_750,ADT36_A.ADT36A_CNT_200,ADT36_A.ADT36A_LRSR,CPF_B.CPF_CNT_200,CPF_B.CPF_LRSR, 
+         CPF_B.CPF_CR, CPF_B.CPF_RT,CPF_B.CPF_RTCR,CPF_B.CPF_W_RTCR, ER40_D.ER40D_RT,ER40_D.ER40D_HAP,ER40_D.ER40D_CNT_250,ER40_D.ER40D_LRSR,ER40_D.ER40D_CR, ER40_D.ER40D_RTCR, MEDF36_A.MEDF36A_LRR_750,MEDF36_A.MEDF36A_CNT_200,MEDF36_A.MEDF36A_LRSR,
+         MEDF36_A.MEDF36A_CR, MEDF36_A.MEDF36A_RTCR,MPRACT.MP2,MPRACT.MP2RTCR, PCET_A.PCET_LRSR,PCET_A.PCET_RTCR, 
+         PCET_A.PCET_CAT, PCET_A.PCET_ACC2, PMAT24_A.PMAT24_A_CR, 
+         PMAT24_A.PMAT24_A_RTTO,PMAT24_A.PMAT24_A_RTCR, SCTAP.SCTAP_UNF_TOT,SCTAP.SCTAP_EXCESS_TOT,SCTAP.SCTAP_UNF_STD,SCTAP.SCTAP_TOT, SLNB2_90.SLNB2_TP0,SLNB2_90.SLNB2_FP0,SLNB2_90.SLNB2_LRR,SLNB2_90.SLNB2_LRNR,SLNB2_90.SLNB2_CNT_200, 
+         SLNB2_90.SLNB2_MCR, SLNB2_90.SLNB2_MRTC,SPCPTNL.SCPT_LRNR,SPCPTN90.SCPN90_TP,
+         SPCPTN90.SCPN90_TPRT,SPCPTNL.SCPN_TPRT, SPCPTNL.SCPN_TP,SVOLT_A.SVOLT_RT,SVOLT_A.SVOLT_NR,
+         SVOLT_A.SVOLT_CNT_200,SVOLT_A.SVOLT_LRR_200,SVOLT_A.SVOLT_LRSR,SVOLT_A.SVOLT_RTCR, VSPLOT15.VSPLOT15_TOT_RT,VSPLOT15.VSPLOT15_SUM_DEG_OFF,VSPLOT15.VSPLOT15_SUM_EXCESS,VSPLOT15.VSPLOT15_SUM_DEFICIT,VSPLOT15.VSPLOT15_CR, VSPLOT15.VSPLOT15_RTCR) %>% 
+        filter(deleted_sample == 1) %>% 
+        mutate(test_sessions_v.gender = case_when(test_sessions_v.gender == "F" ~ "Female",test_sessions_v.gender == "M" ~ "Male",TRUE ~ NA_character_)) %>% 
+        mutate(remote = case_when(platform == "webcnp" ~ "In-person",platform == "webcnp-surveys" ~ "Remote",platform == "crowdsource-surveys" ~ "Remote",TRUE ~ NA_character_)) %>% 
+        mutate(gender_remote = paste(test_sessions_v.gender,remote))
 
 # Remove timepoints where subjects are over 35; create number of tests variable
 
-CNB_under35 <- CNB %>% 
+CNB_under35 <- CNB_22q %>% 
   filter(test_sessions_v.age <= 35) %>%
   mutate(test_sessions_v.dotest = str_replace_all(test_sessions_v.dotest,pattern = "^([[:digit:]])/",replacement = "0\\1/")) %>% # pad months with 0
   mutate(test_sessions_v.dotest = str_replace_all(test_sessions_v.dotest,pattern = "/([[:digit:]])/",replacement = "/0\\1/")) %>% #pad days with 0
@@ -89,13 +90,13 @@ CNB_cross <- CNB_under35 %>%
 
 # Cap values at 6 sd 
 
-tests <- CNB_cross %>% 
-     select(!(matches("^test") | matches("valid_code") | matches("_AR$") | "remote" | "gender_remote" | "deleted_sample" | "cnbagegrp" | "platform")) %>% 
-     colnames()
-for(test in tests){
-  CNB_cross[[test]] <- ifelse(CNB_cross[[test]] > mean(CNB_cross[[test]],na.rm = TRUE) + 6*sd(CNB_cross[[test]],na.rm = TRUE),mean(CNB_cross[[test]],na.rm = TRUE) + 6*sd(CNB_cross[[test]],na.rm = TRUE),CNB_cross[[test]])
-  CNB_cross[[test]] <- ifelse(CNB_cross[[test]] < mean(CNB_cross[[test]],na.rm = TRUE) - 6*sd(CNB_cross[[test]],na.rm = TRUE),mean(CNB_cross[[test]],na.rm = TRUE) - 6*sd(CNB_cross[[test]],na.rm = TRUE),CNB_cross[[test]])
-}
+# tests <- CNB_cross %>% 
+#      select(matches("RTCR$"),matches("CR$"),matches("TP$"),matches("TPRT$"),matches("MCR$"),matches("MRTC$"),matches("SCTAP.SCTAP_TOT"),matches("CAT$"),matches("ACC2")) %>% 
+#      colnames()
+# for(test in tests){
+#   CNB_cross[[test]] <- ifelse(CNB_cross[[test]] > mean(CNB_cross[[test]],na.rm = TRUE) + 6*sd(CNB_cross[[test]],na.rm = TRUE),mean(CNB_cross[[test]],na.rm = TRUE) + 6*sd(CNB_cross[[test]],na.rm = TRUE),CNB_cross[[test]])
+#   CNB_cross[[test]] <- ifelse(CNB_cross[[test]] < mean(CNB_cross[[test]],na.rm = TRUE) - 6*sd(CNB_cross[[test]],na.rm = TRUE),mean(CNB_cross[[test]],na.rm = TRUE) - 6*sd(CNB_cross[[test]],na.rm = TRUE),CNB_cross[[test]])
+# }
 
 
 # Use codebook to build data frame which maps test acronyms to test names
@@ -110,6 +111,61 @@ Metric_map <- data.frame("Suffix" = c("_cr","_rtcr","_tot","_acc2","_tprt","_ptp
                                      "Median Response Time \n True Positives (ms)","True Positive (%)","Total True Positive Responses","Median Response Time \n Correct Responses","Correct Responses (%)","Median Reaction Time \n Correct Responses (ms)","Categories Achieved","True Positive Responses"))
 Metric_map$Suffix <- str_to_upper(Metric_map$Suffix)
 
+# Create flags for individuals with poor data quality 
+
+CNB_cross_qc <- CNB_cross %>% 
+  mutate(ADT_flag = case_when(ADT36_A.ADT36A_LRR_750 > 3 | ADT36_A.ADT36A_CNT_200 > 3 | ADT36_A.ADT36A_LRSR > 11 ~ "F",TRUE ~ "V")) %>% 
+  mutate(CPF_flag = case_when(CPF_B.CPF_RT <= 200 | CPF_B.CPF_CNT_200 >= 21 | CPF_B.CPF_LRSR >= 21 ~ "F",TRUE ~ "V")) %>%
+  mutate(ER40_flag = case_when(ER40_D.ER40D_CR < 12 | ER40_D.ER40D_HAP < 6 | ER40_D.ER40D_RT <= 200 | ER40_D.ER40D_CNT_250 > 2 | ER40_D.ER40D_LRSR > 11 ~ "F",TRUE ~ "V")) %>%
+  mutate(MEDF_flag = case_when(MEDF36_A.MEDF36A_LRR_750 > 3 | MEDF36_A.MEDF36A_CNT_200 > 3 | MEDF36_A.MEDF36A_LRSR > 11 ~ "F",TRUE ~ "V")) %>%
+  mutate(MPRACT_flag = case_when(MPRACT.MP2 < 16 ~ "F",TRUE ~ "V")) %>%
+  mutate(PCET_flag = case_when(PCET_A.PCET_LRSR > 10 ~ "F",TRUE ~ "V")) %>%
+  mutate(PMAT_flag = case_when(PMAT24_A.PMAT24_A_CR < 5 & PMAT24_A.PMAT24_A_RTTO < 2000 ~ "F",TRUE ~ "V")) %>%
+  mutate(SCTAP_flag = case_when(SCTAP.SCTAP_UNF_TOT < 70 | SCTAP.SCTAP_EXCESS_TOT > 38 | SCTAP.SCTAP_UNF_STD > 17  ~ "F",TRUE ~ "V")) %>%
+  mutate(SLNB_flag = case_when(SLNB2_90.SLNB2_TP0 < 6 | SLNB2_90.SLNB2_FP0 > 4 | SLNB2_90.SLNB2_LRR > 8 | SLNB2_90.SLNB2_LRNR > 26 | SLNB2_90.SLNB2_CNT_200 > 2 ~ "F",TRUE ~ "V")) %>%
+  mutate(SPCPTN_flag = case_when(SPCPTNL.SCPT_LRNR > 36  ~ "F",TRUE ~ "V")) %>%
+  mutate(SVOLT_flag = case_when(SVOLT_A.SVOLT_RT <= 200 | SVOLT_A.SVOLT_CNT_200 >= 11 | SVOLT_A.SVOLT_LRR_200 >= 11 | SVOLT_A.SVOLT_LRSR >= 11 | SVOLT_A.SVOLT_NR > 5 ~ "F",TRUE ~ "V")) %>% 
+  mutate(VSPLOT_flag = case_when(VSPLOT15.VSPLOT15_TOT_RT > 600000 | (VSPLOT15.VSPLOT15_SUM_DEG_OFF > 500 & VSPLOT15.VSPLOT15_SUM_EXCESS > 200) | VSPLOT15.VSPLOT15_SUM_DEFICIT > 45  ~ "F",TRUE ~ "V"))
+
+CNB_cross_qc_flag <- CNB_cross_qc %>% 
+  select(contains("flag"),remote,test_sessions_v.age,test_sessions_v.gender) %>% 
+  pivot_longer(cols = contains("flag"),names_to = "Test",values_to = "Flagged") %>% 
+  mutate(Test = str_replace_all(Test,pattern = "_flag$",replacement = "")) %>% 
+  rename(Sex = test_sessions_v.gender,Age = test_sessions_v.age,`Test Location` = remote) 
+
+strata <- c(list(F.Overall = CNB_cross_qc_flag %>% filter(Flagged == "F")),list(V.Overall = CNB_cross_qc_flag %>% filter(Flagged == "V")),split(CNB_cross_qc_flag,f = ~ Flagged + Test))
+names(strata) <- str_replace_all(names(strata),pattern = "\\..*",replacement = "")
+
+
+labels <- list(
+  variables=list(`Test Location`="Test Location",
+                 Age="Age",
+                 Sex="Sex"),groups = c("Overall","ADT","CPF","ER40","MEDF","MPRACT","PCET","PMAT","SCTAP","SLNB","SPCPTN","SVOLT","VSPLOT"))
+
+table1(strata,labels,groupspan = c(rep(2,13)))
+
+CNB_cross_num_flagged <- CNB_cross_qc %>% 
+  select(test_sessions.bblid,contains("flag"),remote,test_sessions_v.age,test_sessions_v.gender) %>% 
+  pivot_longer(cols = contains("flag"),names_to = "Test",values_to = "Flagged") %>% 
+  mutate(Test = str_replace_all(Test,pattern = "_flag$",replacement = "")) %>% 
+  rename(bblid = test_sessions.bblid,Sex = test_sessions_v.gender,Age = test_sessions_v.age,`Test Location` = remote) %>% 
+  group_by(bblid) %>% 
+  mutate(Num_flagged = as.character(sum(Flagged == "F"))) %>%  
+  ungroup() %>% 
+  select(-Test,-Flagged) %>% 
+  distinct(bblid,.keep_all = T) 
+ 
+strata <- c(split(CNB_cross_num_flagged,CNB_cross_num_flagged$Num_flagged))
+labels <- list(
+  variables=list(`Test Location`="Test Location",
+                 Age="Age",
+                 Sex="Sex"),groups = c("Number of Tests Flagged"))
+
+ 
+table1(strata,labels,groupspan = c(4),data = CNB_cross_num_flagged)
+
+
+
 
 # Run models on the cross-sectional data 
 
@@ -118,23 +174,35 @@ Metric_map$Suffix <- str_to_upper(Metric_map$Suffix)
 theme_set(theme_minimal())
 theme_update(axis.title.y = element_text(size = 10))
 
-response_cols_RT <- CNB_cross %>% 
-  select(matches("RTCR$"),matches("MRTC"),matches("TPRT")) %>% 
-  select(!(matches("_AR$")|CPF_B.CPF_W_RTCR|SPCPTNL.SCPN_TPRT)) %>% 
-  colnames()
-
 CNB_cross <- CNB_cross %>% 
   mutate(Age_centered = as.numeric(scale(test_sessions_v.age,center = T,scale = F))) %>% 
   rename(Test_Location = remote)
+
+response_cols_RT <- CNB_cross %>% 
+  select(matches("RTCR$"),matches("MRTC$"),matches("TPRT$")) %>% 
+  select(!matches("W_RTCR$")) %>% 
+  colnames()
 
 RT_cross_mod_output <- list()
 RT_cross_mod_output_full <- list()
 ylabels_RT <- c()
 plot_titles_RT <- c()
-test_names_full <- c()
 cntr <- 1
-CNB_cross_tmp <- CNB_cross 
+CNB_RT_data <- list()
+
 for(test in response_cols_RT){
+  # Find the valid code column and filter the data on it
+  test_beforePeriod <- str_split(test,pattern = "\\.")[[1]][1]
+  valid_code_col <- paste0(test_beforePeriod,".valid_code")
+  if(valid_code_col == "SVOLT_A.valid_code"){
+    CNB_RT_data[[cntr]] <- CNB_cross
+  } else{
+    CNB_RT_data[[cntr]] <- CNB_cross %>% 
+      filter(.data[[valid_code_col]] != "N"|is.na(.data[[valid_code_col]]))
+  }
+   
+
+  # Parse test to generate the correct labels for the model plots
   test_noPeriod <- str_replace_all(test,pattern = "\\.",replacement = "_")
   test_split <- str_split(test_noPeriod,pattern = "_")[[1]]
   test_prefix <- test_split[1]
@@ -153,36 +221,40 @@ for(test in response_cols_RT){
   test_name_no_space <- str_replace_all(test_name_noN,pattern = " ",replacement = "_")
   test_name_no_space <- str_replace_all(test_name_no_space,pattern = "\\(|\\)",replacement = "")
   test_name_no_space <- str_replace_all(test_name_no_space,pattern = "-",replacement = "_")
-  
-  colnames(CNB_cross_tmp) <- ifelse(test == colnames(CNB_cross_tmp),test_name_no_space,colnames(CNB_cross_tmp))
-  
-  f <- as.formula(paste(test_name_no_space,"~","test_num + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location + test_sessions_v.gender:Age_centered + test_sessions_v.gender:Test_Location + Test_Location:Age_centered + test_sessions_v.gender:Test_Location:Age_centered"))
-  f_full <- as.formula(paste(test_name_no_space,"~","test_num + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location + test_sessions_v.gender:Age_centered + test_sessions_v.gender:Test_Location + Test_Location:Age_centered + test_sessions_v.gender:Test_Location:Age_centered"))
-  mod <- lm(f,data = CNB_cross_tmp)
-  mod_full <- lm(f_full,data = CNB_cross_tmp)
+
+  colnames(CNB_RT_data[[cntr]]) <- ifelse(test == colnames(CNB_RT_data[[cntr]]),test_name_no_space,colnames(CNB_RT_data[[cntr]]))
+
+  f <- as.formula(paste(test_name_no_space,"~","test_num + I(test_num^2) + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location"))
+  f_full <- as.formula(paste(test_name_no_space,"~","test_num + I(test_num^2) + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location + test_sessions_v.gender:Age_centered + test_sessions_v.gender:Test_Location + Test_Location:Age_centered + test_sessions_v.gender:Test_Location:Age_centered"))
+  mod <- lm(f,data = CNB_RT_data[[cntr]])
+  mod_full <- lm(f_full,data = CNB_RT_data[[cntr]])
   RT_cross_mod_output[[cntr]] <- mod
   RT_cross_mod_output_full[[cntr]] <- mod_full
   ylabels_RT[cntr] <- ylabel
   plot_titles_RT[cntr] <- Plot_title
-  test_names_full[cntr] <- test_name_no_space
   cntr <- cntr + 1
 }
 
 # Similar analysis for Correct responses
 
-response_cols_CR <- CNB_cross %>% 
-  select(matches("_CR$"),matches("_TP$"),matches("_MCR"),matches("_PC$"),matches("ACC2$"),matches("_CAT$")) %>% 
-  select(-SPCPTNL.SCPN_TP) %>% 
-  colnames()
-
 CR_cross_mod_output <- list()
 CR_cross_mod_output_full <- list()
+CNB_CR_data <- list()
 ylabels_CR <- c()
 plot_titles_CR <- c()
-test_names_full <- c()
 cntr <- 1
 
+response_cols_CR <- CNB_cross %>% 
+  select(matches("_CR$"),matches("SCTAP_TOT$"),matches("ACC2$"),matches("PTP$"),matches("MCR$"),matches("CAT$"),matches("TP$")) %>% 
+  colnames()
 for(test in response_cols_CR){
+  
+  # Find the valid code column and filter the data on it
+  test_beforePeriod <- str_split(test,pattern = "\\.")[[1]][1]
+  valid_code_col <- paste0(test_beforePeriod,".valid_code")
+  CNB_CR_data[[cntr]] <- CNB_cross %>% 
+      filter(.data[[valid_code_col]] != "N"|is.na(.data[[valid_code_col]]))
+  
   test_noPeriod <- str_replace_all(test,pattern = "\\.",replacement = "_")
   test_split <- str_split(test_noPeriod,pattern = "_")[[1]]
   test_prefix <- test_split[1]
@@ -200,19 +272,18 @@ for(test in response_cols_CR){
   test_name_noN <- str_replace_all(test_name,pattern = "\\(|\\)| \n","")
   test_name_no_space <- str_replace_all(test_name_noN,pattern = " |-",replacement = "_")
   test_name_no_space <- str_replace_all(test_name_no_space,pattern = "%",replacement = 'Percent')
-  
-  
-  colnames(CNB_cross_tmp) <- ifelse(test == colnames(CNB_cross_tmp),test_name_no_space,colnames(CNB_cross_tmp))
-  
-  f <- as.formula(paste(test_name_no_space,"~","test_num + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location"))
-  f_full <- as.formula(paste(test_name_no_space,"~","test_num + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location + test_sessions_v.gender:Age_centered + test_sessions_v.gender:Test_Location + Test_Location:Age_centered + test_sessions_v.gender:Test_Location:Age_centered"))
-  mod <- lm(f,data = CNB_cross_tmp)
-  mod_full <- lm(f_full,data = CNB_cross_tmp)
+
+
+  colnames(CNB_CR_data[[cntr]]) <- ifelse(test == colnames(CNB_CR_data[[cntr]]),test_name_no_space,colnames(CNB_CR_data[[cntr]]))
+
+  f <- as.formula(paste(test_name_no_space,"~","test_num + I(test_num^2) + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location"))
+  f_full <- as.formula(paste(test_name_no_space,"~","test_num + I(test_num^2) + test_sessions_v.gender + Age_centered + I(Age_centered^2) + I(Age_centered^3) + Test_Location + test_sessions_v.gender:Age_centered + test_sessions_v.gender:Test_Location + Test_Location:Age_centered + test_sessions_v.gender:Test_Location:Age_centered"))
+  mod <- lm(f,data = CNB_CR_data[[cntr]])
+  mod_full <- lm(f_full,data = CNB_CR_data[[cntr]])
   CR_cross_mod_output[[cntr]] <- mod
   CR_cross_mod_output_full[[cntr]] <- mod_full
   ylabels_CR[cntr] <- ylabel
   plot_titles_CR[cntr] <- Plot_title
-  test_names_full[cntr] <- test_name_no_space
   cntr <- cntr + 1
 }
 
@@ -246,6 +317,159 @@ for(i in 1:length(CR_cross_mod_output_full)){
 }
 dev.off()
 
+# Match data set 
+
+CNB_cross <- CNB_cross %>% 
+  mutate(remote = case_when(Test_Location == "Remote" ~ 1,Test_Location == "In-person" ~ 0,TRUE ~ NA_real_))
+mod <- matchit(remote ~ test_sessions_v.age + test_sessions_v.gender,data = CNB_cross,ratio = 1)
+remote_indx <- as.numeric(rownames(mod$match.matrix))
+inPerson_indx <- as.numeric(mod$match.matrix[,1])
+
+CNB_cross_matched <- CNB_cross %>% 
+  relocate(Test_Location) %>% 
+  slice(c(remote_indx,inPerson_indx)) 
+
+
+# Run models with matched data
+
+CR_cross_matched_mod_output <- list()
+CNB_cross_matched_tmp <- CNB_cross_matched
+cntr <- 1
+
+for(test in response_cols_CR){
+  test_noPeriod <- str_replace_all(test,pattern = "\\.",replacement = "_")
+  test_split <- str_split(test_noPeriod,pattern = "_")[[1]]
+  test_prefix <- test_split[1]
+  test_suffix <- paste0("_",test_split[length(test_split)])
+  
+  Plot_title <- Test_map %>% 
+    filter(Prefix == test_prefix) %>% 
+    pull(Test_name)
+  
+  ylabel <- Metric_map %>% 
+    filter(Suffix == test_suffix) %>% 
+    pull(Label)
+  
+  test_name <- paste(Plot_title,ylabel)
+  test_name_noN <- str_replace_all(test_name,pattern = "\\(|\\)| \n","")
+  test_name_no_space <- str_replace_all(test_name_noN,pattern = " |-",replacement = "_")
+  test_name_no_space <- str_replace_all(test_name_no_space,pattern = "%",replacement = 'Percent')
+  
+  colnames(CNB_cross_matched_tmp) <- ifelse(test == colnames(CNB_cross_matched_tmp),test_name_no_space,colnames(CNB_cross_matched_tmp))
+  
+  f <- as.formula(paste(test_name_no_space,"~","test_num + Test_Location"))
+  mod <- lm(f,data = CNB_cross_matched_tmp)
+  CR_cross_matched_mod_output[[cntr]] <- mod
+  cntr <- cntr + 1
+}
+  
+tab_model(CR_cross_matched_mod_output[[1]],CR_cross_matched_mod_output[[2]],CR_cross_matched_mod_output[[3]],CR_cross_matched_mod_output[[4]],CR_cross_matched_mod_output[[5]],CR_cross_matched_mod_output[[6]],CR_cross_matched_mod_output[[7]],CR_cross_matched_mod_output[[8]],CR_cross_matched_mod_output[[9]],CR_cross_matched_mod_output[[10]],CR_cross_matched_mod_output[[11]])
+
+# Code to create tables using valid codes 
+
+# Spot differences in CNB scores based on valid scores 
+
+# N_plus_valid_codes <- CNB_cross %>%
+#   mutate(across(.fns = ~ as.character(.x))) %>%
+#   pivot_longer(matches("valid_code"),names_to = "Test",values_to = "Valid_code") %>%
+#   group_by(Test) %>%
+#   summarize(n = sum(Valid_code %in% c("V3","N","F"),na.rm = T))
+# 
+# N_valid_code <- CNB_cross %>% 
+#   mutate(across(.fns = ~ as.character(.x))) %>%
+#   pivot_longer(matches("valid_code"),names_to = "Test",values_to = "Valid_code") %>%
+#   group_by(Test) %>%
+#   summarize(n = sum(Valid_code == "N",na.rm = T))
+# 
+# response_cols_RT <- CNB_cross %>% 
+#   select(matches("RTCR$"),matches("MRTC"),matches("TPRT")) %>% 
+#   select(!(CPF_B.CPF_W_RTCR|SPCPTNL.SCPN_TPRT)) %>% 
+#   colnames()
+# 
+# response_cols_CR <- CNB_cross %>% 
+#   select(matches("_CR$"),matches("_TP$"),matches("_MCR"),matches("ACC2$"),matches("_CAT$")) %>% 
+#   select(-SPCPTNL.SCPN_TP) %>% 
+#   colnames()
+# 
+# valid_code_tables_CR <- list()
+# title_of_test_CR <- c()
+# cntr <- 1
+# for(test in response_cols_CR){
+#   test_beforePeriod <- str_split(test,pattern = "\\.")[[1]][1]
+#   col_valid_code <- paste0(test_beforePeriod,".valid_code")
+#   
+#   test_noPeriod <- str_replace_all(test,pattern = "\\.",replacement = "_")
+#   test_split <- str_split(test_noPeriod,pattern = "_")[[1]]
+#   test_prefix <- test_split[1]
+#   test_suffix <- paste0("_",test_split[length(test_split)])
+#   
+#   Plot_title <- Test_map %>% 
+#     filter(Prefix == test_prefix) %>% 
+#     pull(Test_name)
+#   
+#   ylabel <- Metric_map %>% 
+#     filter(Suffix == test_suffix) %>% 
+#     pull(Label)
+#   
+#   title_of_test_CR[cntr] <- paste(Plot_title,ylabel)
+#   
+#   CNB_cross_trim <- CNB_cross %>% 
+#     mutate(across(contains(col_valid_code),.fns = ~ case_when(.x == "F" | .x == "V3" ~ "F or V3",.x == "N" ~ "N",TRUE ~ "Valid"))) %>% 
+#     select(test_sessions_v.age,test_sessions_v.gender,.data[[test]],.data[[col_valid_code]],remote) %>% 
+#     rename("Test Location" = remote)
+#   
+#   valid_code_tables_CR[[cntr]] <- CNB_cross_trim %>% 
+#     filter(!is.na(.data[[test]])) %>% 
+#     mutate(across(contains(test),.fns = ~ as.numeric(.x))) %>% 
+#     rename("Correct Responses" = !!as.symbol(test)) %>% 
+#     tbl_summary(by = all_of(col_valid_code),type = list(where(is.numeric) ~ "continuous")) %>% 
+#     modify_header(label ~ "**Valid Codes**") 
+#   
+#   cntr <- cntr + 1
+# }
+# tbl_merge(valid_code_tables_CR,tab_spanner = title_of_test_CR)
+# 
+# # Same thing for Reaction time
+# 
+# valid_code_tables_RT <- list()
+# title_of_test_RT <- c()
+# cntr <- 1
+# for(test in response_cols_RT){
+#   test_beforePeriod <- str_split(test,pattern = "\\.")[[1]][1]
+#   col_valid_code <- paste0(test_beforePeriod,".valid_code")
+#   if(col_valid_code == "SVOLT_A.valid_code"){
+#     next
+#   }
+#   test_noPeriod <- str_replace_all(test,pattern = "\\.",replacement = "_")
+#   test_split <- str_split(test_noPeriod,pattern = "_")[[1]]
+#   test_prefix <- test_split[1]
+#   test_suffix <- paste0("_",test_split[length(test_split)])
+#   
+#   Plot_title <- Test_map %>% 
+#     filter(Prefix == test_prefix) %>% 
+#     pull(Test_name)
+#   
+#   ylabel <- Metric_map %>% 
+#     filter(Suffix == test_suffix) %>% 
+#     pull(Label)
+#   
+#   title_of_test_RT[cntr] <- paste(Plot_title,ylabel)
+#   
+#   CNB_cross_trim <- CNB_cross %>% 
+#     mutate(across(contains(col_valid_code),.fns = ~ case_when(.x == "F" | .x == "V3" ~ "F or V3",.x == "N" ~ "N",TRUE ~ "Valid"))) %>% 
+#     select(test_sessions_v.age,test_sessions_v.gender,.data[[test]],.data[[col_valid_code]],remote) %>% 
+#     rename("Test Location" = remote)
+#   
+#   valid_code_tables_RT[[cntr]] <- CNB_cross_trim %>% 
+#     filter(!is.na(.data[[test]])) %>% 
+#     mutate(across(contains(test),.fns = ~ as.numeric(.x))) %>% 
+#     rename("Reaction Time" = !!as.symbol(test)) %>% 
+#     tbl_summary(by = all_of(col_valid_code),type = list(where(is.numeric) ~ "continuous")) %>% 
+#     modify_header(label ~ "**Valid Codes**") 
+#   
+#   cntr <- cntr + 1
+# }
+# tbl_merge(valid_code_tables_RT,tab_spanner = title_of_test_RT)
 
 # Models for longitudinal data
 # 
