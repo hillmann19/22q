@@ -1,17 +1,20 @@
 library(PerFit)
 library(tidyverse)
-select <- dplyr::select
 
-CNB <- read_csv("Projects/22q/Data/QA/CNB/cnb_22q_cross_qc_05_12_2022_complete.csv", 
+Comment_flags <- read_csv("Projects/22q/Data/QA/CNB/cnb_22q_cross_qc_05_12_2022_complete.csv", 
                 skip = 1)
 athena_3360_2096 <- read_csv("~/Projects/22q/Data/itemwise/athena_3360_2096.csv")
 athena_254_360 <- read_csv("~/Projects/22q/Data/itemwise/athena_254_360.csv")
 CNB_order <- read_csv("/Users/hillmann/Projects/22q/Data/QA/CNB/22q_cnb_batteries_order.csv")
-CNB_orig <- read_csv("~/Projects/22q/Data/Summary/cnb_all_202109.csv")
+CNB <- read_csv("/Users/hillmann/Projects/22q/Data/Summary/cnb_22q_cross_qc_05_12_2022.csv")
+
+Comment_flags_narrow <- Comment_flags %>% 
+  select(test_sessions.bblid,test_sessions.datasetid,contains("(1 = yes, no = 2)"),contains("Overall_Valid")) %>% 
+  mutate(test_sessions.bblid = as.character(test_sessions.bblid))
 
 CNB <- CNB %>% 
   mutate(test_sessions.bblid = as.character(test_sessions.bblid)) %>% 
-  left_join(CNB_orig[,c("test_sessions.bblid","test_sessions.datasetid","SVOLT_A.SVOLT_CR")])
+  left_join(Comment_flags_narrow)
 
 # Clean CNB comment flags
 colnames(CNB) <- str_replace_all(colnames(CNB),pattern = " \\(1 = yes, no = 2\\)",replacement = "")
@@ -21,7 +24,7 @@ colnames(CNB) <- str_replace_all(colnames(CNB),pattern = "_valid",replacement = 
 colnames(CNB) <- str_replace_all(colnames(CNB),pattern = "Overall_Valid",replacement = "Overall_valid")
 
 CNB$test_sessions.bblid <- as.character(CNB$test_sessions.bblid)
-
+                                      
 # First, find SVME for each test in the data set
 
 add_PFscores <- function(test,test_grep,test_type,output_df){
@@ -58,7 +61,24 @@ add_PFscores <- function(test,test_grep,test_type,output_df){
       filter(!if_any(.cols = matches("TTR$"),.fns = ~ !is.na(.x) && .x < 0)) 
     
     
-  } else{
+  }else if(test == "VSPLOT"){
+    athena_3360_2096_narrow <- athena_3360_2096 %>% 
+      select(test_sessions.bblid,test_sessions_v.age,test_sessions_v.datasetid,test_sessions_v.dotest,matches(test_grep)) %>% 
+      select(test_sessions.bblid,test_sessions_v.age,test_sessions_v.datasetid,test_sessions_v.dotest,matches("_CORR$"),matches("_RT_[[:digit:]]")) %>% 
+      filter(if_any(.cols = matches(test_grep),.fns = ~ !is.na(.x))) 
+    
+    athena_254_360_narrow <- athena_254_360 %>% 
+      select(test_sessions.bblid,test_sessions_v.age,test_sessions_v.datasetid,test_sessions_v.dotest,matches(test_grep)) %>% 
+      select(test_sessions.bblid,test_sessions_v.age,test_sessions_v.datasetid,test_sessions_v.dotest,matches("_CORR$"),matches("_RT_[[:digit:]]")) %>% 
+      filter(if_any(.cols = matches(test_grep),.fns = ~ !is.na(.x))) 
+    
+    itemwise_data <- rbind(athena_3360_2096_narrow,athena_254_360_narrow) %>% 
+      filter(!if_any(.cols = matches("_RT_[[:digit:]]"),.fns = ~ !is.na(.x) && .x < 0)) %>% 
+      mutate(test_sessions.bblid = as.character(test_sessions.bblid)) %>% 
+      semi_join(CNB,by = c("test_sessions.bblid","test_sessions_v.datasetid" = "test_sessions.datasetid")) %>% 
+      mutate(across(.cols = contains("CORR"),.fns = ~ as.numeric(.x)))
+    
+  }else{
     
     athena_3360_2096_narrow <- athena_3360_2096 %>% 
       select(test_sessions.bblid,test_sessions_v.age,test_sessions_v.datasetid,test_sessions_v.dotest,matches(test_grep)) %>% 
@@ -81,7 +101,12 @@ add_PFscores <- function(test,test_grep,test_type,output_df){
     
   }
   
-  dat <- itemwise_data[,c(grep("_CORR",colnames(itemwise_data)),grep("_TTR",colnames(itemwise_data)))]
+  if(test == "VSPLOT"){
+    dat <- itemwise_data[,c(grep("_CORR",colnames(itemwise_data)),grep("_RT_[[:digit:]]",colnames(itemwise_data)))]
+  }else{
+    dat <- itemwise_data[,c(grep("_CORR",colnames(itemwise_data)),grep("_TTR",colnames(itemwise_data)))]
+  }
+  
   dat <- as.data.frame(dat)
   items <- ncol(dat)/2
   dat[,(items+1):(2*items)] <- log(dat[,(items+1):(2*items)])
@@ -128,9 +153,9 @@ add_PFscores <- function(test,test_grep,test_type,output_df){
   return(output_df)
 }
 
-tests <- c("CPF","SVOLT","PMAT","ER40","MEDF","SLNB","ADT")
-test_type <- c("memory","memory","non-memory","non-memory","non-memory","memory","non-memory")
-test_grep <- c("^CPF_B.CPF_TRIAL","^SVOLT_A.SVOLT_TRIAL","^PMAT24_A.PMAT24_A_QID","^ER40_D.ER40D_QID","^MEDF36_A.MEDF36A_QID","^SLNB2_90.SLNB2_QID","^ADT36_A.ADT36A_QID")
+tests <- c("CPF","SVOLT","PMAT","ER40","MEDF","SLNB","ADT","VSPLOT")
+test_type <- c("memory","memory","non-memory","non-memory","non-memory","memory","non-memory","non-memory")
+test_grep <- c("^CPF_B.CPF_TRIAL","^SVOLT_A.SVOLT_TRIAL","^PMAT24_A.PMAT24_A_QID","^ER40_D.ER40D_QID","^MEDF36_A.MEDF36A_QID","^SLNB2_90.SLNB2_QID","^ADT36_A.ADT36A_QID","^VSPLOT15.VSPLOT15")
 
 CNB_with_SMVE <- CNB
 
@@ -138,4 +163,8 @@ for(i in 1:length(tests)){
   CNB_with_SMVE <- add_PFscores(test = tests[i],test_grep = test_grep[i],test_type = test_type[i],output_df = CNB_with_SMVE)
 }
 
+CNB_with_SMVE <- CNB_with_SMVE %>% 
+  mutate(across(.cols = c(PFscores_CPF,PFscores_SVOLT,PFscores_PMAT,PFscores_ER40,PFscores_MEDF,PFscores_SLNB,PFscores_ADT,PFscores_VSPLOT),.fns = ~ case_when(.x < quantile(.x,.05,na.rm = T) ~ "F",TRUE ~ "V"),.names = "{.col}_flag")) 
+
 write_csv(CNB_with_SMVE,file = "/Users/hillmann/Projects/22q/Data/QA/CNB/CNB_with_SMVE.csv")
+
