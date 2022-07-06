@@ -19,7 +19,7 @@ CNB_cross_clean <- CNB_cross_qc %>%
   mutate(across(.cols = c(MPRACT.MP2RTCR),.fns = ~ ifelse(sum(c(MPRACT_comment_flag,MPRACT_AV_flag) == "F") >= 1,NA,.x))) %>% 
   mutate(across(.cols = c(PCET_A.PCET_RTCR,PCET_A.PCET_ACC2,PCET_A.PCET_CAT),.fns = ~ ifelse(sum(c(PCET_comment_flag,PCET_AV_flag) == "F") >= 1,NA,.x))) %>% 
   mutate(across(.cols = c(PMAT24_A.PMAT24_A_RTCR,PMAT24_A.PMAT24_A_CR),.fns = ~ ifelse(sum(c(PFscores_PMAT_flag,PMAT_comment_flag,PMAT_AV_flag) == "F") >= 2,NA,.x))) %>% 
-  mutate(across(.cols = c(SVOLT_A.SVOLT_RTCR),.fns = ~ ifelse(sum(c(PFscores_SVOLT_flag,SVOLT_comment_flag,SVOLT_AV_flag) == "F") >= 2,NA,.x))) %>%
+  mutate(across(.cols = c(SVOLT_A.SVOLT_CR,SVOLT_A.SVOLT_RTCR),.fns = ~ ifelse(sum(c(PFscores_SVOLT_flag,SVOLT_comment_flag,SVOLT_AV_flag) == "F") >= 2,NA,.x))) %>%
   mutate(across(.cols = c(VSPLOT15.VSPLOT15_RTCR,VSPLOT15.VSPLOT15_CR),.fns = ~ ifelse(sum(c(PFscores_VSPLOT_flag,VSPLOT_comment_flag,VSPLOT_AV_flag) == "F") >= 2,NA,.x))) %>%
   mutate(across(.cols = c(SLNB2_90.SLNB2_MRTC,SLNB2_90.SLNB2_MCR),.fns = ~ ifelse(sum(c(SLNB_comment_flag,SLNB_AV_flag) == "F") >= 1,NA,.x))) %>%
   mutate(across(.cols = c(SPCPTN90_TPRT,SPCPTN90_TP),.fns = ~ ifelse(sum(c(SPCPTN_comment_flag,SPCPTN_AV_flag) == "F") >= 1,NA,.x))) %>% 
