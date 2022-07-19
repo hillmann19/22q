@@ -111,7 +111,7 @@ acc_long <- CNB_cross_clean %>%
   rowwise() %>% 
   mutate(Test_name = Test_map$Test_name[which(Test_map$Prefix == Test_prefix)]) %>% 
   mutate(Test_name = str_replace_all(Test_name,pattern = " ",replacement = "_")) %>% 
-  mutate(Test_Type = case_when(str_split(Test,pattern = "_")[[1]][2] == "az" ~ "Accuracy",TRUE ~ "Speed")) %>% 
+  mutate(Test_Type = case_when(Test_middle == "az" ~ "Accuracy",Test_middle == "sz" ~ "Speed",TRUE ~ NA_character_)) %>% 
   ungroup() %>% 
   filter(Test_Type == "Accuracy")
 
@@ -123,7 +123,7 @@ speed_long <- CNB_cross_clean %>%
   rowwise() %>% 
   mutate(Test_name = Test_map$Test_name[which(Test_map$Prefix == Test_prefix)]) %>% 
   mutate(Test_name = str_replace_all(Test_name,pattern = " ",replacement = "_")) %>% 
-  mutate(Test_Type = case_when(str_split(Test,pattern = "_")[[1]][2] == "az" ~ "Accuracy",TRUE ~ "Speed")) %>% 
+  mutate(Test_Type = case_when(Test_middle == "az" ~ "Accuracy",Test_middle == "sz" ~ "Speed",TRUE ~ NA_character_)) %>% 
   ungroup() %>% 
   filter(Test_Type == "Speed")
 
