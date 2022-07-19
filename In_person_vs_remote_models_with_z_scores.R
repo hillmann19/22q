@@ -98,7 +98,7 @@ Metric_map <- data.frame("Middle" = c("az","sz"),
 
 # Run regression model on the CNB IQ model 
 
-iq_mod <- lm(cnb_iq ~ test_num + I(test_num^2) + Test_Location,data = CNB_iq)
+iq_mod <- lm(cnb_iq ~ gaf_c + test_num + I(test_num^2) + Test_Location,data = CNB_iq)
 summary(iq_mod)
 
 # Run mixed-effect models 
