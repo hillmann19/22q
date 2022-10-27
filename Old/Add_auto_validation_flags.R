@@ -6,9 +6,6 @@ athena_254_360 <- read_csv("~/Projects/22q/Data/itemwise/athena_254_360.csv")
 
 # Filter to include only 22q subjects, select only necessary columns
 
-CNB_for_Study %>% 
-  filter(deleted_sample == 1) %>% 
-  select(matches("ER40.*_CR"))
 
 CNB_22q <- CNB_for_Study %>% 
   select(test_sessions.bblid,test_sessions.datasetid,test_sessions.siteid, 
