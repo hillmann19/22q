@@ -10,10 +10,17 @@ library(VGAM)
 library(psych)
 library(ggpubr)
 select <- dplyr::select
-
+demo <- read_csv('/Users/hillmann/Projects/22q/Data/subject.csv')
 CNB <- read_csv("/Users/hillmann/Projects/22q/Data/22q_in_person_vs_remote_CNB_clean.csv") 
 
-CNB$Test_Location <- factor(CNB$Test_Location)
+CNB <- CNB %>% 
+  mutate(across(.cols = matches('_asr$'),.fns = ~ winsor(.x,trim = .01))) %>% 
+  mutate(Test_Location = factor(Test_Location))
+
+demo_race <- demo %>% 
+  rename(bblid = BBLID) %>% 
+  rename(Race = RACE) %>% 
+  select(bblid,Race)
 
 CNB_iq <- missForest(as.data.frame(CNB %>% select(test_sessions_v.age,test_num,Test_Location,matches("_asr"))))$ximp %>% 
   tibble() %>% 
@@ -133,15 +140,32 @@ p_val_df_speed$p_val_corrected <- p.adjust(p_val_df_speed$P_val,method = "fdr")
 # Create demographic tables for presentation
 
 CNB_for_table <- CNB %>%
+  left_join(demo_race) %>% 
   mutate(`Prior CNB tests` = test_num - 1) %>% 
   rename(`Test Location` = "Test_Location",Age = test_sessions_v.age,Sex = test_sessions_v.gender) %>%
   mutate(Sex = case_when(Sex == "M" ~ "Male",Sex == "F" ~ "Female",TRUE ~ NA_character_)) %>%
   mutate(`Prior CNB tests` = factor(`Prior CNB tests`)) %>%
-  mutate(`Prior CNB tests` = fct_collapse(`Prior CNB tests`,`3+` = c("3","4","5","7"))) %>% 
-  mutate(race = case_when(race == 1 ~ "White",race == 2 ~ "Black/African American",race == 3 ~ "Native American",race == 4 ~ "Asian",race == 5 ~ "More than one race",race == 6 ~ "Hawaiian/Pacific Islander",race == 9 ~ NA_character_,TRUE ~ NA_character_)) %>% 
-  rename(Race = race)
+  mutate(`Prior CNB tests` = fct_collapse(`Prior CNB tests`,`3+` = c("3","4","5","6","8"))) %>% 
+  mutate(Race = case_when(Race == 1 ~ "White",Race == 2 ~ "Black/African American",Race == 3 ~ "Native American",Race == 4 ~ "Asian",Race == 5 ~ "More than one race",Race == 6 ~ "Hawaiian/Pacific Islander",Race == 9 ~ NA_character_,TRUE ~ NA_character_))
 
 table1(~ Age + Sex + Race + `Prior CNB tests`|`Test Location`, data = CNB_for_table)
+
+# Create table which examines tests removed by location 
+
+CNB_completed <- CNB %>%
+  select(bblid,test_sessions.datasetid,Test_Location,matches('_completed')) %>%
+  pivot_longer(cols = matches('_completed$'),names_to = 'Test',values_to = 'Complete') %>%
+  mutate(Test = str_replace_all(Test,pattern = '_completed',replacement = ''))
+
+CNB_qc_table <- CNB %>%
+  select(bblid,test_sessions.datasetid,Test_Location,matches('_removed')) %>%
+  pivot_longer(cols = matches('_removed$'),names_to = 'Test',values_to = 'QC') %>%
+  mutate(Test = str_replace_all(Test,pattern = '_removed',replacement = '')) %>%
+  left_join(CNB_completed) %>%
+  filter(Complete == 'Completed')
+
+table1(~ QC| Test + Test_Location,data = CNB_qc_table)
+
 
 #Plot for CPT
 
@@ -176,7 +200,7 @@ CNB_CPT %>%
 
 CNB_iq %>% 
   mutate(Prior_CNB_tests = factor(Prior_CNB_tests)) %>%
-  mutate(Prior_CNB_tests = fct_collapse(Prior_CNB_tests,`3+` = c("3","4","5","7"))) %>% 
+  mutate(Prior_CNB_tests = fct_collapse(Prior_CNB_tests,`3+` = c("3","4","5","6","8"))) %>% 
   pivot_longer(cols = c(Overall_Accuracy,Overall_Speed),names_to = 'Metric',values_to = 'Score') %>% 
   mutate(Metric = str_replace_all(Metric,pattern = 'Overall_',replacement = '')) %>% 
   group_by(Test_Location,Prior_CNB_tests,Metric) %>% 

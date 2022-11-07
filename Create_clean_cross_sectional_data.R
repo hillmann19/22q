@@ -4,26 +4,28 @@ library(psych)
 library(PerFit)
 library(table1)
 select <- dplyr::select
-CNB <- read_csv("/Users/hillmann/Projects/22q_Longitudinal/Data/22qlong_dx_sips_rawcnb_stdcnb_merged_updatedvalidcodes_oct2022.csv")
+CNB <- read_csv('/Users/hillmann/Projects/22q/Data/22qlong_dx_sips_rawcnb_stdcnb_merged_updatedvalidcodes_nov2022.csv')
 athena_3360_2096 <- read_csv("~/Projects/22q/Data/itemwise/athena_3360_2096.csv")
 athena_3360_2107 <- read_csv("~/Projects/22q/Data/itemwise/athena_3360_2107.csv")
 athena_195_360 <- read_csv("~/Projects/22q/Data/itemwise/athena_195_360.csv")
 athena_195_369 <- read_csv("~/Projects/22q/Data/itemwise/athena_195_369.csv")
-reviewer_comments <- read_csv('/Users/hillmann/Projects/22q/Data/Assessor_flags_to_update_10_06_2022_EM.csv',skip = 1)
+reviewer_comments <- read_csv("Projects/22q/Data/Assessor_flags_to_update_10_31_2022_EM.csv", 
+                              col_types = cols(...17 = col_skip()), 
+                              skip = 1)
+
+reviewer_comments <- reviewer_comments %>% 
+  rename(test_sessions.datasetid = test_sessions_datasetid)
 
 # Get cross-sectional data set 
 
 CNB_under35 <- CNB %>% 
+  rename(bblid = test_sessions.bblid.clean) %>% 
   mutate(Test_Location = case_when(platform == "webcnp" ~ "In-person",platform == "webcnp-surveys" ~ "Remote",TRUE ~ NA_character_)) %>% 
   mutate(Test_Location = factor(Test_Location,levels = c("In-person","Remote"))) %>% 
-  select(bblid,test_sessions.datasetid,test_sessions_v.age,test_sessions_v.valid_code, test_sessions_v.gender,race,test_sessions_v.dotest,test_sessions_v.starttime,test_sessions_v.endtime,test_sessions_v.valid_code,Test_Location,matches('_genus$'),matches("_valid$"),matches("_asr$")) %>% 
-  select(!(matches("lan_.._asr|^vmem.*|pvrt_valid|cpw_valid"))) %>% 
+  select(bblid,test_sessions.datasetid,test_sessions_v.age,test_sessions_v.gender,test_sessions_v.dotest,Test_Location,matches('_genus$'),matches("_valid$"),matches("_asr$")) %>% 
+  select(!(matches("lan_.._asr|vmem_.._asr|pvrt|^cpw|^gng|^aim|^digsym"))) %>% 
   filter(test_sessions_v.age <= 35) %>%
   filter(if_any(.cols = matches("_asr"),.fns = ~ !is.na(.x))) %>% 
-  mutate(test_sessions_v.dotest = str_replace_all(test_sessions_v.dotest,pattern = "^([[:digit:]])/",replacement = "0\\1/")) %>% # pad months with 0
-  mutate(test_sessions_v.dotest = str_replace_all(test_sessions_v.dotest,pattern = "/([[:digit:]])/",replacement = "/0\\1/")) %>% #pad days with 0
-  mutate(test_sessions_v.dotest = str_replace_all(test_sessions_v.dotest,pattern = "([[:digit:]][[:digit:]])$",replacement = "20\\1")) %>% # Add 20 to year (15 becomes 2015)
-  mutate(test_sessions_v.dotest = as.Date(test_sessions_v.dotest,format = "%m/%d/%Y")) %>% 
   group_by(bblid) %>% 
   arrange(bblid,test_sessions_v.dotest) %>% 
   mutate(test_num = row_number()) %>% 
@@ -66,31 +68,31 @@ CNB_cross <- CNB_under35 %>%
 test_grep_15 <- "^VSPLOT15.VSPLOT15"
 test_grep_24 <- "^VSPLOT24.VSPLOT15"
 
-athena_3360_2096_qc_15 <- athena_3360_2096 %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_15)) %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$')) 
+athena_3360_2096_qc_15 <- athena_3360_2096 %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_15)) %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$'))
 
-athena_195_360_qc_15 <- athena_195_360 %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_15)) %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$')) 
+athena_195_360_qc_15 <- athena_195_360 %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_15)) %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$'))
 
-athena_3360_2096_qc_24 <- athena_3360_2096 %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_24)) %>% 
-  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$')) 
+athena_3360_2096_qc_24 <- athena_3360_2096 %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches(test_grep_24)) %>%
+  select(test_sessions.bblid,test_sessions.datasetid,matches("VSPLOT.*TOT_RT$"),matches('VSPLOT.*SUM_DEG_OFF$'))
 
 colnames(athena_3360_2096_qc_15) <- str_replace_all(colnames(athena_3360_2096_qc_15),pattern = "^VSPLOT15\\.",replacement = "")
 colnames(athena_195_360_qc_15) <- str_replace_all(colnames(athena_195_360_qc_15),pattern = "^VSPLOT15\\.",replacement = "")
 colnames(athena_3360_2096_qc_24) <- str_replace_all(colnames(athena_3360_2096_qc_24),pattern = "^VSPLOT24\\.",replacement = "")
 
-vsplot_qc_data <- rbind(athena_3360_2096_qc_15,athena_195_360_qc_15,athena_3360_2096_qc_24) %>% 
-  mutate(test_sessions.bblid = as.character(test_sessions.bblid)) %>% 
-  rename(bblid = test_sessions.bblid) %>% 
-  filter(if_any(.cols = matches("VSPLOT"),.fns = ~ !is.na(.x))) %>% 
-  semi_join(CNB_cross,by = c("bblid","test_sessions.datasetid")) 
+vsplot_qc_data <- rbind(athena_3360_2096_qc_15,athena_195_360_qc_15,athena_3360_2096_qc_24) %>%
+  mutate(test_sessions.bblid = as.character(test_sessions.bblid)) %>%
+  rename(bblid = test_sessions.bblid) %>%
+  filter(if_any(.cols = matches("VSPLOT"),.fns = ~ !is.na(.x))) %>%
+  semi_join(CNB_cross,by = c("bblid","test_sessions.datasetid"))
 
-CNB_cross <- CNB_cross %>% 
-  left_join(vsplot_qc_data) %>% 
-  mutate(plot_valid = case_when(VSPLOT15_TOT_RT < 100000 | VSPLOT15_SUM_DEG_OFF > 500 ~ 'F',TRUE ~ 'V'))
+CNB_cross <- CNB_cross %>%
+  left_join(vsplot_qc_data) %>%
+  mutate(plot_valid = case_when(plot_valid == 'N' ~ 'N',VSPLOT15_TOT_RT < 100000 | VSPLOT15_SUM_DEG_OFF > 500 ~ 'F',TRUE ~ 'V'))
 
 add_PFscores <- function(test,test_type,output_df){
   
@@ -455,34 +457,38 @@ CNB_with_SMVE <- CNB_with_SMVE %>%
 reviewer_comments <- reviewer_comments %>% 
   mutate(Overall_valid_comments =  case_when(is.na(Overall_valid_comments) ~ 'V',TRUE ~ Overall_valid_comments)) 
 
+CNB_with_completed <- CNB_with_SMVE %>% 
+  mutate(ADT_completed = ifelse(!is.na(adi_az_asr) | !is.na(adi_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(CPF_completed = ifelse(!is.na(fmem_az_asr) | !is.na(fmem_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(ER40_completed = ifelse(!is.na(eid_az_asr) | !is.na(eid_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(MEDF_completed = ifelse(!is.na(edi_az_asr) | !is.na(edi_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(MPRACT_completed = ifelse(!is.na(sm_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(PCET_completed = ifelse(!is.na(abf_az_asr) | !is.na(abf_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(PMAT_completed = ifelse(!is.na(nvr_az_asr) | !is.na(nvr_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(SCTAP_completed = ifelse(!is.na(mot_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(ADT_completed = ifelse(!is.na(adi_az_asr) | !is.na(adi_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(SLNB_completed = ifelse(!is.na(wm_az_asr) | !is.na(wm_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(CPT_completed = ifelse(!is.na(att_az_asr) | !is.na(att_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(VOLT_completed = ifelse(!is.na(smem_az_asr) | !is.na(smem_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(PLOT_completed = ifelse(!is.na(spa_az_asr) | !is.na(spa_sz_asr),'Completed','Not Completed')) %>% 
+  mutate(ADT_completed = ifelse(!is.na(adi_az_asr) | !is.na(adi_sz_asr),'Completed','Not Completed')) 
+  
 # Remove Ns on valid codes, Fs on assessor comments
-CNB_all_QC <- CNB_with_SMVE %>% 
+CNB_all_QC <- CNB_with_completed %>% 
   mutate(bblid = as.integer(bblid)) %>% 
   left_join(reviewer_comments) %>%
-  mutate(across(.cols = c(adi_az_asr,adi_sz_asr),.fns = ~ case_when(adt_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>% 
-  mutate(across(.cols = c(fmem_az_asr,fmem_sz_asr),.fns = ~ case_when(cpf_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(eid_az_asr,eid_sz_asr),.fns = ~ case_when(er40_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(edi_az_asr,edi_sz_asr),.fns = ~ case_when(medf_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(sm_sz_asr),.fns = ~ case_when(mpraxis_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(abf_az_asr,abf_sz_asr),.fns = ~ case_when(pcet_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(nvr_az_asr,nvr_sz_asr),.fns = ~ case_when(pmat_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(mot_sz_asr),.fns = ~ case_when(tap_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(wm_az_asr,wm_sz_asr),.fns = ~ case_when(lnb_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(att_az_asr,att_sz_asr),.fns = ~ case_when(cpt_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(smem_az_asr,smem_sz_asr),.fns = ~ case_when(volt_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(spa_az_asr,spa_sz_asr),.fns = ~ case_when(plot_valid == 'N' ~ NA_real_,TRUE ~ .x))) %>% 
-  mutate(across(.cols = c(adi_az_asr,adi_sz_asr),.fns = ~ case_when(ADT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>% 
-  mutate(across(.cols = c(fmem_az_asr,fmem_sz_asr),.fns = ~ case_when(CPF_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(eid_az_asr,eid_sz_asr),.fns = ~ case_when(ER40_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(edi_az_asr,edi_sz_asr),.fns = ~ case_when(MEDF_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(sm_sz_asr),.fns = ~ case_when(MPRACT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(abf_az_asr,abf_sz_asr),.fns = ~ case_when(PCET_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(nvr_az_asr,nvr_sz_asr),.fns = ~ case_when(PMAT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(mot_sz_asr),.fns = ~ case_when(SCTAP_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(wm_az_asr,wm_sz_asr),.fns = ~ case_when(SLNB_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(att_az_asr,att_sz_asr),.fns = ~ case_when(SPCPTN_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(smem_az_asr,smem_sz_asr),.fns = ~ case_when(SVOLT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
-  mutate(across(.cols = c(spa_az_asr,spa_sz_asr),.fns = ~ case_when(VSPLOT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>% 
+  mutate(across(.cols = c(adi_az_asr,adi_sz_asr),.fns = ~ case_when(adt_valid == 'N' | ADT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>% 
+  mutate(across(.cols = c(fmem_az_asr,fmem_sz_asr),.fns = ~ case_when(cpf_valid == 'N' | CPF_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(eid_az_asr,eid_sz_asr),.fns = ~ case_when(er40_valid == 'N' | ER40_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(edi_az_asr,edi_sz_asr),.fns = ~ case_when(medf_valid == 'N' | MEDF_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(sm_sz_asr),.fns = ~ case_when(mpraxis_valid == 'N' | MPRACT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(abf_az_asr,abf_sz_asr),.fns = ~ case_when(pcet_valid == 'N' | PCET_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(nvr_az_asr,nvr_sz_asr),.fns = ~ case_when(pmat_valid == 'N' | PMAT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(mot_sz_asr),.fns = ~ case_when(tap_valid == 'N' | SCTAP_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(wm_az_asr,wm_sz_asr),.fns = ~ case_when(lnb_valid == 'N' | SLNB_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(att_az_asr,att_sz_asr),.fns = ~ case_when(cpt_valid == 'N' | SPCPTN_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(smem_az_asr,smem_sz_asr),.fns = ~ case_when(volt_valid == 'N' | SVOLT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>%
+  mutate(across(.cols = c(spa_az_asr,spa_sz_asr),.fns = ~ case_when(plot_valid == 'N' | VSPLOT_valid_comments == 'F' ~ NA_real_,TRUE ~ .x))) %>% 
   rowwise() %>% 
   mutate(ADT_flags = sum(c_across(c(adt_valid,PFscores_ADT_flag)) == 'F',na.rm = T)) %>% 
   mutate(CPF_flags = sum(c_across(c(cpf_valid,PFscores_CPF_flag)) == 'F',na.rm = T)) %>%
@@ -497,6 +503,7 @@ CNB_all_QC <- CNB_with_SMVE %>%
   
 # Remove tests flagged on a majority of available QC metrics
 CNB_all_QC <- CNB_all_QC %>% 
+  filter(!(bblid %in% c(21223,123456))) %>% # Remove bblids which were from tests or parents of 22q
   mutate(across(.cols = c(adi_az_asr,adi_sz_asr),.fns = ~ case_when(ADT_flags == 2 ~ NA_real_,TRUE ~ .x))) %>% 
   mutate(across(.cols = c(fmem_az_asr,fmem_sz_asr),.fns = ~ case_when(CPF_flags == 2 ~ NA_real_,TRUE ~ .x))) %>%
   mutate(across(.cols = c(eid_az_asr,eid_sz_asr),.fns = ~ case_when(ER40_flags == 2 ~ NA_real_,TRUE ~ .x))) %>%
@@ -506,39 +513,30 @@ CNB_all_QC <- CNB_all_QC %>%
   mutate(across(.cols = c(att_az_asr,att_sz_asr),.fns = ~ case_when(CPT_flags == 2 ~ NA_real_,TRUE ~ .x))) %>%
   mutate(across(.cols = c(smem_az_asr,smem_sz_asr),.fns = ~ case_when(VOLT_flags == 2 ~ NA_real_,TRUE ~ .x))) %>%
   mutate(across(.cols = c(spa_az_asr,spa_sz_asr),.fns = ~ case_when(PLOT_flags == 2 ~ NA_real_,TRUE ~ .x))) %>% 
-  mutate(across(.cols = matches('_asr$'),.fns = ~ winsor(.x,trim = .01))) %>% 
   mutate(bblid = as.character(bblid))
 
-# Create table which examines tests removed by location 
-
-CNB_qc_table <- CNB_all_QC %>% 
-  filter(Overall_valid_comments != 'F') %>% 
-  mutate(ADT_removed = case_when(is.na(adt_valid) & is.na(adi_az_asr) ~ NA_character_,adt_valid == 'N'|ADT_valid_comments == 'F'|ADT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(CPF_removed = case_when(is.na(cpf_valid) & is.na(fmem_az_asr) ~ NA_character_,cpf_valid == 'N'|CPF_valid_comments == 'F'|CPF_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(ER40_removed = case_when(is.na(er40_valid) & is.na(edi_az_asr) ~ NA_character_,er40_valid == 'N'|ER40_valid_comments == 'F'|ER40_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(MEDF_removed = case_when(is.na(medf_valid) & is.na(edi_az_asr) ~ NA_character_,medf_valid == 'N'|MEDF_valid_comments == 'F'|MEDF_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(PMAT_removed = case_when(is.na(pmat_valid) & is.na(nvr_az_asr) ~ NA_character_,pmat_valid == 'N'|PMAT_valid_comments == 'F'|PMAT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(SLNB_removed = case_when(is.na(lnb_valid) & is.na(wm_az_asr) ~ NA_character_,lnb_valid == 'N'|SLNB_valid_comments == 'F'|SLNB_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(CPT_removed = case_when(is.na(cpt_valid) & is.na(att_az_asr) ~ NA_character_,cpt_valid == 'N'|SPCPTN_valid_comments == 'F'|CPT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(VOLT_removed = case_when(is.na(volt_valid) & is.na(smem_az_asr) ~ NA_character_,volt_valid == 'N'|SVOLT_valid_comments == 'F'|VOLT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(PLOT_removed = case_when(is.na(plot_valid) & is.na(spa_az_asr) ~ NA_character_,plot_valid == 'N'|VSPLOT_valid_comments == 'F'|PLOT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(SCTAP_removed = case_when(is.na(tap_valid) & is.na(mot_sz_asr) ~ NA_character_,tap_valid == 'N'|SCTAP_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(MPRACT_removed = case_when(is.na(mpraxis_valid) & is.na(sm_sz_asr) ~ NA_character_,mpraxis_valid == 'N'|MPRACT_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  mutate(PCET_removed = case_when(is.na(pcet_valid) & is.na(abf_az_asr) ~ NA_character_,pcet_valid == 'N'|PCET_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  select(bblid,test_sessions.datasetid,Test_Location,matches('_removed')) %>% 
-  pivot_longer(cols = matches('_removed$'),names_to = 'Test',values_to = 'QC') %>% 
-  mutate(Test = str_replace_all(Test,pattern = '_removed',replacement = '')) %>% 
-  filter(!is.na(QC))
-  
-table1(~ QC| Test_Location,data = CNB_qc_table)
 
 # Write clean data set to file 
 
-CNB_final <- CNB_all_QC %>% 
+CNB_final <- CNB_all_QC %>%
   filter(Overall_valid_comments != 'F') %>% 
-  select(bblid:test_num)
+  mutate(ADT_removed = case_when(ADT_completed == 'Not Completed' ~ NA_character_,adt_valid == 'N'|ADT_valid_comments == 'F'|ADT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(CPF_removed = case_when(CPF_completed == 'Not Completed' ~ NA_character_,cpf_valid == 'N'|CPF_valid_comments == 'F'|CPF_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(ER40_removed = case_when(ER40_completed == 'Not Completed' ~ NA_character_,er40_valid == 'N'|ER40_valid_comments == 'F'|ER40_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(MEDF_removed = case_when(MEDF_completed == 'Not Completed' ~ NA_character_,medf_valid == 'N'|MEDF_valid_comments == 'F'|MEDF_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(PMAT_removed = case_when(PMAT_completed == 'Not Completed' ~ NA_character_,pmat_valid == 'N'|PMAT_valid_comments == 'F'|PMAT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(SLNB_removed = case_when(SLNB_completed == 'Not Completed' ~ NA_character_,lnb_valid == 'N'|SLNB_valid_comments == 'F'|SLNB_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(CPT_removed = case_when(CPT_completed == 'Not Completed' ~ NA_character_,cpt_valid == 'N'|SPCPTN_valid_comments == 'F'|CPT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(VOLT_removed = case_when(VOLT_completed == 'Not Completed' ~ NA_character_,volt_valid == 'N'|SVOLT_valid_comments == 'F'|VOLT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(PLOT_removed = case_when(PLOT_completed == 'Not Completed' ~ NA_character_,plot_valid == 'N'|VSPLOT_valid_comments == 'F'|PLOT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(SCTAP_removed = case_when(SCTAP_completed == 'Not Completed' ~ NA_character_,tap_valid == 'N'|SCTAP_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(MPRACT_removed = case_when(MPRACT_completed == 'Not Completed' ~ NA_character_,mpraxis_valid == 'N'|MPRACT_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  mutate(PCET_removed = case_when(PCET_completed == 'Not Completed' ~ NA_character_,pcet_valid == 'N'|PCET_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
+  select(!matches('_flags'))
 
-write_csv(CNB_final,'/Users/hillmann/Projects/22q/Data/22q_in_person_vs_remote_CNB_clean.csv')
+
+write_csv(CNB_final,'/Users/hillmann/Projects/22q/Data/22q_in_person_vs_remote_CNB_11_04_2022_NH.csv')
+
   
 # Merge old reviewer comments so that work doesn't have to be repeated
 
