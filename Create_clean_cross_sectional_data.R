@@ -12,6 +12,7 @@ athena_195_369 <- read_csv("~/Projects/22q/Data/itemwise/athena_195_369.csv")
 reviewer_comments <- read_csv("Projects/22q/Data/Assessor_flags_to_update_10_31_2022_EM.csv", 
                               col_types = cols(...17 = col_skip()), 
                               skip = 1)
+demo <- read_csv('/Users/hillmann/Projects/22q/Data/subject.csv')
 
 reviewer_comments <- reviewer_comments %>% 
   rename(test_sessions.datasetid = test_sessions_datasetid)
@@ -22,8 +23,9 @@ CNB_under35 <- CNB %>%
   rename(bblid = test_sessions.bblid.clean) %>% 
   mutate(Test_Location = case_when(platform == "webcnp" ~ "In-person",platform == "webcnp-surveys" ~ "Remote",TRUE ~ NA_character_)) %>% 
   mutate(Test_Location = factor(Test_Location,levels = c("In-person","Remote"))) %>% 
-  select(bblid,test_sessions.datasetid,test_sessions_v.age,test_sessions_v.gender,test_sessions_v.dotest,Test_Location,matches('_genus$'),matches("_valid$"),matches("_asr$")) %>% 
+  select(bblid,test_sessions.datasetid,test_sessions.famid,test_sessions_v.age,test_sessions_v.gender,test_sessions_v.dotest,Test_Location,matches('_genus$'),matches("_valid$"),matches("_asr$")) %>% 
   select(!(matches("lan_.._asr|vmem_.._asr|pvrt|^cpw|^gng|^aim|^digsym"))) %>% 
+  mutate(across(.cols = matches('_asr$'),.fns = ~ case_when(.x == 0 ~ NA_real_,TRUE ~ .x))) %>%
   filter(test_sessions_v.age <= 35) %>%
   filter(if_any(.cols = matches("_asr"),.fns = ~ !is.na(.x))) %>% 
   group_by(bblid) %>% 
@@ -518,6 +520,12 @@ CNB_all_QC <- CNB_all_QC %>%
 
 # Write clean data set to file 
 
+fam_id <- demo %>% 
+  rename(bblid = BBLID,famid = FAMID) %>% 
+  mutate(bblid = as.character(bblid)) %>% 
+  select(bblid,famid) %>% 
+  distinct()
+
 CNB_final <- CNB_all_QC %>%
   filter(Overall_valid_comments != 'F') %>% 
   mutate(ADT_removed = case_when(ADT_completed == 'Not Completed' ~ NA_character_,adt_valid == 'N'|ADT_valid_comments == 'F'|ADT_flags == 2 ~ 'Removed',TRUE ~ 'Valid')) %>% 
@@ -532,12 +540,27 @@ CNB_final <- CNB_all_QC %>%
   mutate(SCTAP_removed = case_when(SCTAP_completed == 'Not Completed' ~ NA_character_,tap_valid == 'N'|SCTAP_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
   mutate(MPRACT_removed = case_when(MPRACT_completed == 'Not Completed' ~ NA_character_,mpraxis_valid == 'N'|MPRACT_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
   mutate(PCET_removed = case_when(PCET_completed == 'Not Completed' ~ NA_character_,pcet_valid == 'N'|PCET_valid_comments == 'F' ~ 'Removed',TRUE ~ 'Valid')) %>% 
-  select(!matches('_flags'))
-
-
-write_csv(CNB_final,'/Users/hillmann/Projects/22q/Data/22q_in_person_vs_remote_CNB_11_04_2022_NH.csv')
-
+  rowwise() %>% 
+  mutate(Number_completed = sum(c_across(cols = matches('_completed$')) == 'Completed',na.rm = T)) %>% 
+  mutate(Number_removed = sum(c_across(cols = matches('_removed$')) == 'Removed',na.rm = T)) %>% 
+  ungroup() %>% 
+  mutate(Number_non_missing = Number_completed - Number_removed) %>% 
+  mutate(Majority_tests_missing = case_when(Number_non_missing >= 6 ~ 'No',TRUE ~ 'Yes')) %>% 
+  select(!matches('_flags')) %>% 
+  select(-Number_completed,-Number_removed,-Number_non_missing,-test_sessions.famid) %>% 
+  left_join(fam_id) %>% 
+  mutate(famid = ifelse(bblid == '21766',8356,famid)) %>% # Fill in NA family id 
+  relocate(famid,.after = bblid) %>% 
+  filter(!(bblid %in% c('16017','16793','17324','18098','18233','22738','17485','19522'))) %>% # Ensuring no subjects are family members
+  mutate(across(.cols = matches('_asr$'),.fns = ~ winsor(.x,trim = .01))) %>% 
+  mutate(Test_Location = factor(Test_Location)) %>% 
+  filter(Majority_tests_missing == 'No') %>% 
+  mutate(Prior_CNB_test = ifelse(test_num == 1,0,1)) %>% 
+  mutate(Prior_CNB_tests = test_num - 1) 
   
+
+write_csv(CNB_final,'/Users/hillmann/Projects/22q/Data/22q_in_person_vs_remote_no_relatives_CNB_11_11_2022_NH.csv')
+
 # Merge old reviewer comments so that work doesn't have to be repeated
 
 # reviewer_flags <- old_reviewer_comments %>% 
